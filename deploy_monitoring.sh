@@ -33,7 +33,7 @@ ALERT_POLICY_NAME="bq-cost-spike-alert"
 
 # The email address to send alert notifications to.
 
-NOTIFICATION_EMAIL="ayrat.khayretdinov@gmail.com"
+NOTIFICATION_EMAIL="ADD_YOUR_EMAIL_HERE"
 
 # --- Helper Functions ---
 
