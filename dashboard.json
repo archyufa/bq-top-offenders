@@ -1,0 +1,89 @@
+{
+  "displayName": "BigQuery Cost Monitoring Dashboard",
+  "gridLayout": {
+    "columns": "2",
+    "widgets": [
+      {
+        "title": "Total Billed TB (Last Hour)",
+        "scorecard": {
+          "timeSeriesQuery": {
+            "timeSeriesFilter": {
+              "filter": "metric.type=\"logging.googleapis.com/user/bq_billed_bytes_rt\" resource.type=\"bigquery_project\"",
+              "aggregation": {
+                "alignmentPeriod": "3600s",
+                "perSeriesAligner": "ALIGN_SUM",
+                "crossSeriesReducer": "REDUCE_SUM"
+              }
+            },
+            "unitOverride": "TB"
+          },
+          "thresholds": [
+            {
+              "label": "OK",
+              "value": 0
+            }
+          ]
+        }
+      },
+      {
+        "title": "Billed Bytes Over Time (Last 24 Hours)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"logging.googleapis.com/user/bq_billed_bytes_rt\" resource.type=\"bigquery_project\"",
+                  "aggregation": {
+                    "alignmentPeriod": "3600s",
+                    "perSeriesAligner": "ALIGN_SUM",
+                    "crossSeriesReducer": "REDUCE_SUM"
+                  }
+                },
+                "unitOverride": "TB"
+              },
+              "plotType": "LINE"
+            }
+          ],
+          "timeshiftDuration": "86400s",
+          "chartOptions": {
+            "mode": "COLOR"
+          }
+        }
+      },
+      {
+        "title": "Top Offenders by Billed TB (Last 6 Hours)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"logging.googleapis.com/user/bq_billed_bytes_rt\" resource.type=\"bigquery_project\"",
+                  "aggregation": {
+                    "alignmentPeriod": "21600s",
+                    "perSeriesAligner": "ALIGN_SUM",
+                    "crossSeriesReducer": "REDUCE_SUM",
+                    "groupByFields": [
+                      "metric.label.user"
+                    ]
+                  }
+                },
+                "unitOverride": "TB"
+              },
+              "plotType": "BAR"
+            }
+          ],
+          "chartOptions": {
+            "mode": "COLOR"
+          }
+        }
+      },
+      {
+        "title": "Recent High-Cost Queries",
+        "logsPanel": {
+          "filter": "resource.type=\"bigquery_project\" protoPayload.methodName=\"jobservice.jobcompleted\" protoPayload.serviceData.jobCompletedEvent.job.jobStatistics.totalBilledBytes > 0",
+          "resourceNames": []
+        }
+      }
+    ]
+  }
+}
