@@ -16,13 +16,7 @@
               }
             },
             "unitOverride": "TB"
-          },
-          "thresholds": [
-            {
-              "label": "OK",
-              "value": 0
-            }
-          ]
+          }
         }
       },
       {
@@ -51,7 +45,7 @@
         }
       },
       {
-        "title": "Top Offenders by Billed TB (Last 6 Hours)",
+        "title": "Top offenders by Billed TB (Last 6 Hours)",
         "xyChart": {
           "dataSets": [
             {
@@ -69,7 +63,7 @@
                 },
                 "unitOverride": "TB"
               },
-              "plotType": "BAR"
+              "plotType": "STACKED_BAR"
             }
           ],
           "chartOptions": {

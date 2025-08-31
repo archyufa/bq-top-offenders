@@ -32,7 +32,8 @@ METRIC_NAME="bq_billed_bytes_rt"
 ALERT_POLICY_NAME="bq-cost-spike-alert"
 
 # The email address to send alert notifications to.
-NOTIFICATION_EMAIL="your-email@example.com"
+
+NOTIFICATION_EMAIL="ayrat.khayretdinov@gmail.com"
 
 # --- Helper Functions ---
 
@@ -84,13 +85,9 @@ if gcloud logging metrics describe "$METRIC_NAME" --project="$GCP_PROJECT_ID" >/
   info "Log-based metric [$METRIC_NAME] already exists. Skipping creation."
 else
   info "Creating log-based metric [$METRIC_NAME]..."
-  gcloud logging metrics create "$METRIC_NAME" \
+  gcloud alpha logging metrics create "$METRIC_NAME" \
     --project="$GCP_PROJECT_ID" \
-    --description="Tracks the total bytes billed by BigQuery queries in near real-time." \
-    --log-filter='resource.type="bigquery_project" AND protoPayload.methodName="jobservice.jobcompleted" AND protoPayload.serviceData.jobCompletedEvent.job.jobStatistics.totalBilledBytes > 0' \
-    --metric-descriptor="metric_kind=DELTA,value_type=DISTRIBUTION" \
-    --value-extractor='EXTRACT(protoPayload.serviceData.jobCompletedEvent.job.jobStatistics.totalBilledBytes)' \
-    --label-extractors='user=EXTRACT(protoPayload.authenticationInfo.principalEmail)'
+    --config-from-file="metric.json"
 
   info "Successfully created log-based metric [$METRIC_NAME]."
 fi
@@ -103,7 +100,7 @@ info "Checking for existence of notification channel for [$NOTIFICATION_EMAIL]..
 # The channel name is what we need for the alerting policy.
 CHANNEL_NAME=$(gcloud alpha monitoring channels list \
   --project="$GCP_PROJECT_ID" \
-  --filter="displayName=\"Email\" AND labels.email_address=\"$NOTIFICATION_EMAIL\"" \
+  --filter="displayName=\"Email\" AND labels.email_address=\""$NOTIFICATION_EMAIL"\"" \
   --format="value(name)" \
   --limit=1)
 
@@ -128,7 +125,7 @@ echo "Using Notification Channel: $CHANNEL_NAME"
 
 info "Checking for existence of alerting policy [$ALERT_POLICY_NAME]..."
 
-if gcloud alpha monitoring policies list --project="$GCP_PROJECT_ID" --filter="displayName=\"$ALERT_POLICY_NAME\"" --format="value(name)" | grep -q .; then
+if gcloud alpha monitoring policies list --project="$GCP_PROJECT_ID" --filter="displayName=\""$ALERT_POLICY_NAME"\"" --format="value(name)" | grep -q .; then
   info "Alerting policy [$ALERT_POLICY_NAME] already exists. Skipping creation."
 else
   info "Creating alerting policy [$ALERT_POLICY_NAME]..."
@@ -140,23 +137,29 @@ else
   CONDITION_FILE=$(mktemp)
   cat > "$CONDITION_FILE" <<EOF
 {
-  "conditionThreshold": {
-    "aggregations": [
-      {
-        "alignmentPeriod": "3600s",
-        "crossSeriesReducer": "REDUCE_SUM",
-        "perSeriesAligner": "ALIGN_SUM"
+  "displayName": "$ALERT_POLICY_NAME",
+  "combiner": "AND",
+  "conditions": [
+    {
+      "displayName": "Total BQ Billed Bytes over 1TB in 1 hour",
+      "conditionThreshold": {
+        "aggregations": [
+          {
+            "alignmentPeriod": "3600s",
+            "crossSeriesReducer": "REDUCE_SUM",
+            "perSeriesAligner": "ALIGN_PERCENTILE_99"
+          }
+        ],
+        "comparison": "COMPARISON_GT",
+        "duration": "0s",
+        "filter": "metric.type=\"logging.googleapis.com/user/${METRIC_NAME}\" AND resource.type=\"bigquery_project\"",
+        "thresholdValue": 1000000000000,
+        "trigger": {
+          "count": 1
+        }
       }
-    ],
-    "comparison": "COMPARISON_GT",
-    "duration": "0s",
-    "filter": "metric.type=\\"logging.googleapis.com/user/${METRIC_NAME}\\" AND resource.type=\\"bigquery_project\\"",
-    "thresholdValue": 1000000000000,
-    "trigger": {
-      "count": 1
     }
-  },
-  "displayName": "Total BQ Billed Bytes over 1TB in 1 hour"
+  ]
 }
 EOF
 
@@ -165,7 +168,7 @@ EOF
     --policy-from-file="$CONDITION_FILE" \
     --display-name="$ALERT_POLICY_NAME" \
     --notification-channels="$CHANNEL_NAME" \
-    --documentation-content="A BigQuery cost spike has been detected. Check the BQ Cost Monitoring Dashboard immediately to identify the source."
+    --documentation-from-file="documentation.md"
 
   rm "$CONDITION_FILE"
   info "Successfully created alerting policy [$ALERT_POLICY_NAME]."
